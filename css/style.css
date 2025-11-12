@@ -81,23 +81,20 @@ main {
 /* --- STEPS --- */
 .step { 
   display: none; 
-  /* [MUDANÇA] Duração aumentada e 'easing' alterado para um 'ease-out' mais forte */
   animation: aggressiveFadeIn 0.5s cubic-bezier(0.215, 0.610, 0.355, 1); 
   width: 100%; 
 }
 .step.active { 
   display: block; 
 }
-
-/* [MUDANÇA] O 'fadeIn' agora também inclui um leve 'scale' (zoom) e mais movimento */
 @keyframes aggressiveFadeIn { 
   from { 
     opacity: 0; 
-    transform: scale(0.98) translateY(20px); /* Começa menor e 20px abaixo */
+    transform: scale(0.98) translateY(20px);
   } 
   to { 
     opacity: 1; 
-    transform: scale(1) translateY(0); /* Termina no tamanho e posição normais */
+    transform: scale(1) translateY(0);
   } 
 }
 
@@ -267,6 +264,118 @@ label.option-card.checkbox-card-visual {
 @media (max-width: 600px) {
     .two-column-layout { flex-direction: column; }
 }
+
+/* --- Lista Dinâmica de Produtos --- */
+#produtos-servicos-container .produto-servico-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.produto-servico-item input.input-modern {
+  flex: 1; /* Faz o input ocupar o espaço */
+}
+.btn-add {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 4px; /* Pequeno espaço acima */
+}
+.btn-add:hover {
+  background: var(--bg-card);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.btn-remove {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--error);
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+  padding: 0;
+}
+.btn-remove:hover {
+  background: var(--error);
+  color: var(--text-main);
+  border-color: var(--error);
+}
+
+/* --- [NOVO] Caixa de Dicas/Exemplos --- */
+.dicas-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 32px; /* Espaço antes do formulário */
+  transition: all 0.2s ease;
+}
+.dicas-box[open] {
+  /* Quando aberto, dá um destaque */
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(39, 192, 226, 0.1);
+}
+
+.dicas-box summary {
+  padding: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  list-style: none; /* Remove a seta padrão */
+  display: flex;
+  align-items: center;
+}
+.dicas-box summary::-webkit-details-marker {
+  display: none; /* Remove a seta (Chrome) */
+}
+.dicas-box summary::before {
+  /* Cria um ícone de "+" ou "-" */
+  content: '+';
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-right: 12px;
+  color: var(--primary);
+  transition: transform 0.2s ease;
+}
+.dicas-box[open] summary::before {
+  content: '−';
+  transform: rotate(180deg);
+}
+
+.dicas-conteudo {
+  padding: 0 20px 20px 20px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.dicas-conteudo p {
+  margin: 12px 0 0 0;
+}
+.dicas-conteudo strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+.dicas-conteudo ul {
+  padding-left: 20px;
+  margin-top: 8px;
+  background: rgba(0,0,0,0.1);
+  border-left: 3px solid var(--primary);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 
 /* --- NAVEGAÇÃO --- */
 .nav-buttons {
