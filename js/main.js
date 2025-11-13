@@ -13,6 +13,16 @@ const BLOCK_MAP = {
   'conhecimento': [13, 14]
 };
 
+// [NOVO] Variáveis de Loading Dinâmico
+let loadingInterval;
+const loadingMessages = [
+  "Analisando seu mercado...",
+  "Gerando seu playbook de vendas...",
+  "Configurando a personalidade do agente...",
+  "Polindo os detalhes...",
+  "Quase pronto..."
+];
+
 // ================= ELEMENTOS UI =================
 const progressBar = document.getElementById('progressBar');
 const prevBtn = document.getElementById('prevBtn');
@@ -37,16 +47,15 @@ async function changeStep(direction) {
   // [CORREÇÃO DO BUG DO LOADING INFINITO]
   if (currentStep === 3 && direction === 1) {
     
-    // 1. Mostra o loading
+    // 1. Mostra o loading (sem carrossel, é rápido)
     showLoading("Analisando seu mercado..."); 
     
     // 2. Simula o tempo de análise
     await new Promise(resolve => setTimeout(resolve, 1000)); 
     
     // 3. Esconde o loading
-    hideLoading(); 
+    hideLoading(); // <-- Esconde o loading
     
-    // [CORREÇÃO] Lê o primeiro item do array de produtos para o mock
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
@@ -124,14 +133,25 @@ function validateCurrentStep() {
   return isValid;
 }
 
-// [MODIFICADO] Apenas MOSTRA o loading
-function showLoading(msg) {
-  loadingMessage.innerText = msg; 
+// [MODIFICADO] Mostra o loading e inicia o carrossel de mensagens
+function showLoading(initialMsg) {
+  loadingMessage.innerText = initialMsg; 
   loadingOverlay.style.display = 'flex';
+  
+  // Limpa qualquer intervalo anterior (por segurança)
+  if (loadingInterval) clearInterval(loadingInterval);
+
+  // Inicia o carrossel de mensagens
+  let messageIndex = 0;
+  loadingInterval = setInterval(() => {
+    messageIndex = (messageIndex + 1) % loadingMessages.length;
+    loadingMessage.innerText = loadingMessages[messageIndex];
+  }, 2500); // Muda a cada 2.5 segundos
 }
 
-// [NOVO] Apenas ESCONDE o loading
+// [NOVO] Para o carrossel e esconde o loading
 function hideLoading() {
+  if (loadingInterval) clearInterval(loadingInterval); // Para o carrossel
   loadingOverlay.style.display = 'none';
 }
 
@@ -263,6 +283,7 @@ window.removeFile = function(inputName, index) {
 }
 
 // --- [NOVO] HELPER PARA MONTAR O JSON PARA O WEBHOOK 2 ---
+// (Este código não é mais usado na lógica atual, mas mantido caso você mude de ideia)
 function createPayloadForWebhook2(form) {
     const produtosNodeList = form['PRODUTO_OU_SERVICO[]'];
     let produtos = [];
@@ -299,8 +320,8 @@ async function finalSubmit() {
          return;
     }
     
-    // [MUDANÇA] Mostra o loading real
-    showLoading("Enviando tudo para a Neural Matrix...");
+    // [MUDANÇA] Mostra o loading real e dinâmico
+    showLoading("Iniciando envio...");
     
     const form = formElement; 
 
@@ -326,13 +347,10 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        console.log("--- DEBUG: Dados para Webhook 1 (n8n) ---");
-        for (let [key, value] of createFormData().entries()) {
+        const debugData = createFormData(); 
+        for (let [key, value] of debugData.entries()) {
             console.log(key, value);
         }
-        console.log("--- DEBUG: Dados para Webhook 2 (JSON) ---");
-        console.log(JSON.stringify(createPayloadForWebhook2(form), null, 2));
-        
         await new Promise(resolve => setTimeout(resolve, 1500)); 
         
         hideLoading(); // [MUDANÇA] Esconde o loading
@@ -341,6 +359,7 @@ async function finalSubmit() {
     }
 
     try {
+        // --- [LÓGICA DE ENVIO MODIFICADA] ---
         // --- Envio para Webhook 1 (n8n - CRÍTICO) ---
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
@@ -349,34 +368,27 @@ async function finalSubmit() {
         if (!response1.ok) {
             throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
         }
+        console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
 
-        // --- Envio para Webhook 2 (Secundário, em "segundo plano") ---
-        const payloadJson2 = createPayloadForWebhook2(form);
-        fetch(WEBHOOK_URL_2, { // Note: sem 'await'
+        // --- Envio para Webhook 2 (Secundário) ---
+        // (Envia os mesmos FormData para o segundo webhook)
+        const response2 = await fetch(WEBHOOK_URL_2, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payloadJson2)
-        })
-        .then(response2 => {
-            if (!response2.ok) {
-                console.warn('Envio para Webhook 2 (JSON) falhou em segundo plano:', response2.statusText);
-            } else {
-                console.log('Envio para Webhook 2 (JSON) bem-sucedido em segundo plano.');
-            }
-        })
-        .catch(error2 => {
-            console.error('Falha de rede no Webhook 2:', error2);
+            body: createFormData() // RECRIA o FormData para a segunda chamada
         });
-        
-        // --- SUCESSO PARA O UTILIZADOR (NÃO ESPERA PELO WH 2) ---
+        if (!response2.ok) {
+            throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
+        }
+        console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
+
+
+        // Se AMBOS funcionarem, mostra o sucesso
         hideLoading(); // [MUDANÇA] Esconde o loading
         showSuccessScreen(form);
 
     } catch (error) {
-        // Este CATCH só é ativado se o Webhook 1 (CRÍTICO) falhar.
-        console.error('Erro na submissão (fetch principal):', error);
+        // Este CATCH é ativado se QUALQUER UM dos webhooks falhar.
+        console.error('Erro na submissão (fetch):', error);
         alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
         hideLoading(); // [MUDANÇA] Esconde o loading no erro
     }
@@ -391,6 +403,7 @@ function showSuccessScreen(form) {
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
+      // Se for um único campo, é um elemento. Se forem múltiplos, é uma NodeList.
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
 
@@ -403,10 +416,7 @@ function showSuccessScreen(form) {
         <h4>2. Qualificação</h4>
         <ul>
             <li><strong>Objetivo:</strong> Identificar se o lead tem o perfil: <strong>${form.CRITERIOS_LEAD_QUALIFICADO.value || "Não definido"}</strong>.</li>
-            <li><strong>Perguntas-Chave:</strong></li>
-            <ul>
-                ${form.QUALIFICACAO_PERGUNTAS.value.split('\n').map(q => `<li>${q}</li>`).join('')}
-            </ul>
+            <li><strong>Pergunt</strong></li>
         </ul>
         <h4>3. Contexto do Produto</h4>
         <ul>
