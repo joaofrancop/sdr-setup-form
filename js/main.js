@@ -282,35 +282,7 @@ window.removeFile = function(inputName, index) {
     renderFileList(inputName);
 }
 
-// --- HELPER PARA MONTAR O JSON PARA O WEBHOOK 2 ---
-function createPayloadForWebhook2(form) {
-    const produtosNodeList = form['PRODUTO_OU_SERVICO[]'];
-    let produtos = [];
-    if (produtosNodeList) {
-        if (produtosNodeList.length > 1) { 
-            produtos = Array.from(produtosNodeList).map(input => input.value);
-        } else { 
-            produtos = [produtosNodeList.value];
-        }
-    }
-
-    const payload = {
-        "empresa": form.EMPRESA_NOME.value,
-        "produtos_ou_servicos": produtos,
-        "icp": form.ICP_DESCRICAO.value,
-        "maior_dificuldade": form.DORES_PRINCIPAIS.value,
-        "localizacao": form.LOCALIZACAO_EMPRESA.value,
-        "contato_com_cliente": {
-            "saudacao": form.MENSAGEM_SAUDACAO.value,
-            "rapport": form.PERGUNTAS_RAPPORT.value,
-            "qualificacao": form.QUALIFICACAO_PERGUNTAS.value,
-            "criterio_lead_qualificado": form.CRITERIOS_LEAD_QUALIFICADO.value,
-            "mensagem_lead_nao_qualificado": form.MENSAGEM_NAO_QUALIFICACAO.value,
-            "objetivos_adicionais": form.OBJETIVOS_ADICIONAIS.value
-        }
-    };
-    return [payload]; 
-}
+// [REMOVIDO] A função createPayloadForWebhook2 foi removida
 
 // ================= SUBMISSÃO FINAL (MODIFICADA) =================
 async function finalSubmit() {
@@ -346,13 +318,10 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        console.log("--- DEBUG: Dados para Webhook 1 (n8n) ---");
-        for (let [key, value] of createFormData().entries()) {
+        const debugData = createFormData(); 
+        for (let [key, value] of debugData.entries()) {
             console.log(key, value);
         }
-        console.log("--- DEBUG: Dados para Webhook 2 (JSON) ---");
-        console.log(JSON.stringify(createPayloadForWebhook2(form), null, 2));
-        
         await new Promise(resolve => setTimeout(resolve, 1500)); 
         
         hideLoading(); // [MUDANÇA] Esconde o loading
@@ -364,6 +333,7 @@ async function finalSubmit() {
         // --- [LÓGICA DE ENVIO CORRIGIDA] ---
         
         // --- Envio para Webhook 1 (n8n - FormData) ---
+        console.log('Enviando para Webhook 1 (n8n)...');
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
             body: createFormData() 
@@ -373,30 +343,27 @@ async function finalSubmit() {
         }
         console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
 
-        // --- Envio para Webhook 2 (JSON Estruturado) ---
-        const payloadJson2 = createPayloadForWebhook2(form);
+        // --- Envio para Webhook 2 (Secundário - FormData) ---
+        console.log('Enviando para Webhook 2 (Secundário)...');
         const response2 = await fetch(WEBHOOK_URL_2, { // <-- AWAIT ADICIONADO
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payloadJson2) // Envia JSON
+            body: createFormData() // RECRIA o FormData para a segunda chamada
         });
         if (!response2.ok) {
-            throw new Error(`Erro no Webhook 2 (JSON): ${response2.statusText}`);
+            throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
         }
-        console.log('Envio para Webhook 2 (JSON) bem-sucedido.');
+        console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
 
 
         // Se AMBOS funcionarem, mostra o sucesso
-        hideLoading(); // <-- MOVIDO PARA O FIM
-        showSuccessScreen(form); // <-- MOVIDO PARA O FIM
+        hideLoading(); // [MUDANÇA] Esconde o loading
+        showSuccessScreen(form); // [MUDANÇA] Mostra o sucesso
 
     } catch (error) {
         // Este CATCH é ativado se QUALQUER UM dos webhooks falhar.
         console.error('Erro na submissão (fetch):', error);
         alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
-        hideLoading(); // Esconde o loading no erro
+        hideLoading(); // [MUDANÇA] Esconde o loading no erro
     }
 }
 
@@ -409,6 +376,7 @@ function showSuccessScreen(form) {
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
+      // Se for um único campo, é um elemento. Se forem múltiplos, é uma NodeList.
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
 
