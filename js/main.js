@@ -272,8 +272,6 @@ function createFormData() {
   return formData;
 }
 
-
-
 // ================= SUBMISSÃO FINAL =================
 async function finalSubmit() {
   if (!validateCurrentStep()) {
@@ -297,8 +295,8 @@ async function finalSubmit() {
   try {
     const formData = createFormData();
     console.log('Enviando para Webhook 1 (n8n)...');
-    // const response1 = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
-    // if (!response1.ok) throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
+    const response1 = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+    if (!response1.ok) throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
     console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
 
     console.log('Enviando para Webhook 2 (Secundário)...');
@@ -306,6 +304,7 @@ async function finalSubmit() {
     if (!response2.ok) throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
     console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
 
+    // Espera JSON do Webhook 2 contendo 'resumo' e 'arquivo' (Base64)
     const responseJson = await response2.json();
     const data = responseJson[0];
     const outputHtml = data?.resumo || "Não foi possível gerar o resumo do playbook.";
@@ -320,12 +319,18 @@ async function finalSubmit() {
         const byteArray = new Uint8Array(byteNumbers);
         const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
         pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // CORREÇÃO E TRATAMENTO DO NOME
         const nomeEmpresaInput = formData.get("EMPRESA_NOME");
-        const nomeEmpresa = nomeEmpresaInput && String(nomeEmpresaInput).trim() !== "" ? nomeEmpresaInput : "Playbook";
+        const nomeEmpresa = (nomeEmpresaInput && String(nomeEmpresaInput).trim() !== "") 
+            ? nomeEmpresaInput 
+            : "Playbook";
         const safeName = nomeEmpresa.replace(/\s+/g, "_");
         const fileName = `${safeName} - Playbook.pdf`;
+        
         const pdfMockup = document.querySelector('.pdf-mockup-box .file-msg');
         const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
+        
         if (pdfMockup && pdfSubMsg) {
           pdfMockup.innerHTML =
             `<a href="${pdfUrl}" download="${fileName}" target="_blank"
@@ -335,22 +340,22 @@ async function finalSubmit() {
       } catch (err) {
         console.error("Erro ao converter Base64 do PDF:", err);
         const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
-        if (pdfSubMsg) pdfSubMsg.textContent = "Erro ao processar o arquivo PDF.";
+        if (pdfSubMsg) pdfSubMsg.textContent = "Erro ao processar o arquivo PDF. (Verifique o console)";
       }
     } else {
       console.warn("Nenhum arquivo PDF Base64 encontrado no retorno do webhook.");
       const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
-      if (pdfSubMsg) pdfSubMsg.textContent = "PDF não gerado ou não retornado pelo servidor.";
+      if (pdfSubMsg) pdfSubMsg.textContent = "PDF não gerado ou Base64 vazio retornado pelo servidor.";
     }
 
-    console.log(outputHtml)
+    // Injeta o resumo HTML, mesmo que o PDF tenha falhado
     document.getElementById('ai_feedback_playbook_content_success').innerHTML = outputHtml;
     hideLoading();
     showSuccessScreen(form);
 
   } catch (error) {
-    console.error('Erro na submissão (fetch):', error);
-    alert("❌ Erro! Não foi possível enviar os dados.");
+    console.error('❌ Erro na submissão (fetch):', error);
+    alert("❌ Erro! Não foi possível enviar os dados ou processar a resposta do servidor.");
     hideLoading();
   }
 }
