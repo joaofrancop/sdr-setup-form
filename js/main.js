@@ -1,20 +1,18 @@
 // ================= CONFIGURAÇÕES =================
-const TOTAL_STEPS = 14; 
+const TOTAL_STEPS = 14;
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
 const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26";
-const WEBHOOK_URL_3 = "https://n8nbluelephant.up.railway.app/webhook/d88a0a70-738a-448d-8bf9-d31a54cfa83a"
-const DEBUG_MODE = false; 
+const WEBHOOK_URL_3 = "https://n8nbluelephant.up.railway.app/webhook/d88a0a70-738a-448d-8bf9-d31a54cfa83a";
+const DEBUG_MODE = false;
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
 
-// Mapeamento de Etapas para Blocos
 const BLOCK_MAP = {
   'questionario': [1, 6],
   'configuracao': [7, 12],
   'conhecimento': [13, 14]
 };
 
-// [NOVO] Variáveis de Loading Dinâmico
 let loadingInterval;
 const loadingMessages = [
   "Analisando seu mercado...",
@@ -24,18 +22,14 @@ const loadingMessages = [
   "Quase pronto..."
 ];
 
-// ================= ELEMENTOS UI =================
 const progressBar = document.getElementById('progressBar');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingMessage = document.getElementById('loadingMessage');
 const blockNavContainer = document.querySelector('.block-nav-container');
-
-// Armazena todos os arquivos
 let uploadedFiles = {};
 
-// Inicializa UI
 updateUI();
 initializeFileUploads();
 initializeDynamicListeners();
@@ -43,54 +37,41 @@ initializeDynamicListeners();
 // ================= FUNÇÃO CENTRAL DE NAVEGAÇÃO =================
 async function changeStep(direction) {
   if (direction === 1 && !validateCurrentStep()) return;
-  const form = formElement; 
+  const form = formElement;
 
-  // [CORREÇÃO DO BUG DO LOADING INFINITO]
   if (currentStep === 3 && direction === 1) {
-    
-    // 1. Mostra o loading (sem carrossel, é rápido)
-    showLoading("Analisando seu mercado..."); 
-    
+    showLoading("Analisando seu mercado...");
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
     const feedback = '';
-    document.getElementById('ai_feedback_1_content').innerHTML = feedback; 
+    document.getElementById('ai_feedback_1_content').innerHTML = feedback;
     document.getElementById('ai_feedback_1').style.display = 'block';
 
-
-
-  try {
-    // Faz a requisição para o webhook do n8n
-    const response = await fetch(WEBHOOK_URL_3, {
-      method: "POST",
-      body: createFormData(), // ou outro corpo se quiser
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao chamar o webhook 3: ${response.statusText}`);
+    try {
+      const response = await fetch(WEBHOOK_URL_3, {
+        method: "POST",
+        body: createFormData()
+      });
+      if (!response.ok) throw new Error(`Erro ao chamar o webhook 3: ${response.statusText}`);
+      let feedback = await response.text();
+      hideLoading();
+      document.getElementById("ai_feedback_1_content").textContent = feedback;
+      document.getElementById("ai_feedback_1").style.display = "block";
+    } catch (error) {
+      hideLoading();
+      console.error("Erro ao buscar feedback:", error);
+      document.getElementById("ai_feedback_1_content").textContent =
+        "Ótimo segmento de mercado! Com certeza conseguimos automatizar suas dores 😄";
+      document.getElementById("ai_feedback_1").style.display = "block";
     }
-
-    let feedback = await response.text();
-    
-    hideLoading();
-    document.getElementById("ai_feedback_1_content").textContent = feedback;
-    document.getElementById("ai_feedback_1").style.display = "block";
-} catch (error) {
-  hideLoading();
-  console.error("Erro ao buscar feedback:", error);
-  document.getElementById("ai_feedback_1_content").textContent = "Ótimo segmento de mercado! Com certeza conseguimos automatizar suas dores 😄";
-  document.getElementById("ai_feedback_1").style.display = "block";
-}
-
   }
 
   currentStep += direction;
   if (currentStep < 1) currentStep = 1;
   if (currentStep > TOTAL_STEPS) currentStep = TOTAL_STEPS;
-
   updateUI();
 
   if (currentStep === TOTAL_STEPS) {
@@ -119,10 +100,9 @@ function updateUI() {
   } else if (currentStep >= BLOCK_MAP.conhecimento[0] && currentStep <= BLOCK_MAP.conhecimento[1]) {
     currentBlockId = 'conhecimento';
   }
-  
-  if (currentBlockId) {
+
+  if (currentBlockId)
     document.querySelector(`.block-nav-item[data-block-id="${currentBlockId}"]`).classList.add('active');
-  }
 
   prevBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -131,316 +111,253 @@ function updateUI() {
 function validateCurrentStep() {
   const activeStep = document.querySelector('.step.active');
   if (!activeStep || activeStep.dataset.step === 'success') return true;
-  
+
   const requiredInputs = activeStep.querySelectorAll('input[required], textarea[required], select[required]');
   let isValid = true;
   let firstInvalidInput = null;
-        
+
   requiredInputs.forEach(input => {
     input.classList.remove('error');
     if (!input.value.trim()) {
-      isValid = false; 
+      isValid = false;
       input.classList.add('error');
-      if (!firstInvalidInput) {
-        firstInvalidInput = input;
-      }
+      if (!firstInvalidInput) firstInvalidInput = input;
     }
   });
-  
-  if (firstInvalidInput) {
-    firstInvalidInput.focus();
-  }
-  
+  if (firstInvalidInput) firstInvalidInput.focus();
   return isValid;
 }
 
-// [MODIFICADO] Mostra o loading e inicia o carrossel de mensagens
 function showLoading(initialMsg) {
-  loadingMessage.innerText = initialMsg; 
+  loadingMessage.innerText = initialMsg;
   loadingOverlay.style.display = 'flex';
-  
-  // Limpa qualquer intervalo anterior (por segurança)
   if (loadingInterval) clearInterval(loadingInterval);
-
-  // Inicia o carrossel de mensagens
   let messageIndex = 0;
   loadingInterval = setInterval(() => {
     messageIndex = (messageIndex + 1) % loadingMessages.length;
     loadingMessage.innerText = loadingMessages[messageIndex];
-  }, 5000); // Muda a cada 5 segundos
+  }, 5000);
 }
 
-// [NOVO] Para o carrossel e esconde o loading
 function hideLoading() {
-  if (loadingInterval) clearInterval(loadingInterval); // Para o carrossel
+  if (loadingInterval) clearInterval(loadingInterval);
   loadingOverlay.style.display = 'none';
 }
 
-window.selectCard = function(el, inputId, val) {
+window.selectCard = function (el, inputId, val) {
   el.parentElement.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected'); document.getElementById(inputId).value = val;
+  el.classList.add('selected');
+  document.getElementById(inputId).value = val;
 }
 
 // ================= LISTENERS DINÂMICOS =================
 function initializeDynamicListeners() {
-  
-    // Listener para Clicar nos Checkbox-Cards (BUG CORRIGIDO)
-    document.querySelectorAll('.checkbox-card-visual').forEach(card => {
-        const cb = card.querySelector('input[type="checkbox"]');
-        card.classList.toggle('selected', cb.checked);
-
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.nested-checkbox')) {
-                return; 
-            }
-            cb.checked = !cb.checked;
-            card.classList.toggle('selected', cb.checked);
-            cb.dispatchEvent(new Event('change'));
-        });
+  document.querySelectorAll('.checkbox-card-visual').forEach(card => {
+    const cb = card.querySelector('input[type="checkbox"]');
+    card.classList.toggle('selected', cb.checked);
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.nested-checkbox')) return;
+      cb.checked = !cb.checked;
+      card.classList.toggle('selected', cb.checked);
+      cb.dispatchEvent(new Event('change'));
     });
-    
-    // Listener para a Tool de Mídia (mostrar/esconder upload)
-    const toolMidiaCheckbox = document.getElementById('tool_midia_checkbox');
-    if (toolMidiaCheckbox) {
-        const mediaUploadSection = document.getElementById('media_upload_section');
-        const nestedAudioFlag = document.getElementById('nested_audio_flag');
-        
-        const syncMediaTool = () => {
-            const isChecked = toolMidiaCheckbox.checked;
-            mediaUploadSection.style.display = isChecked ? 'block' : 'none';
-            nestedAudioFlag.style.display = isChecked ? 'flex' : 'none';
-            if (!isChecked) {
-                const nestedInput = document.getElementById('FLAG_ENVIO_ARQUIVO_AUDIO');
-                if(nestedInput) nestedInput.checked = false;
-            }
-        };
-        syncMediaTool();
-        toolMidiaCheckbox.addEventListener('change', syncMediaTool);
+  });
+
+  const toolMidiaCheckbox = document.getElementById('tool_midia_checkbox');
+  if (toolMidiaCheckbox) {
+    const mediaUploadSection = document.getElementById('media_upload_section');
+    const nestedAudioFlag = document.getElementById('nested_audio_flag');
+    const syncMediaTool = () => {
+      const isChecked = toolMidiaCheckbox.checked;
+      mediaUploadSection.style.display = isChecked ? 'block' : 'none';
+      nestedAudioFlag.style.display = isChecked ? 'flex' : 'none';
+      if (!isChecked) {
+        const nestedInput = document.getElementById('FLAG_ENVIO_ARQUIVO_AUDIO');
+        if (nestedInput) nestedInput.checked = false;
+      }
+    };
+    syncMediaTool();
+    toolMidiaCheckbox.addEventListener('change', syncMediaTool);
+  }
+
+  const container = document.getElementById('produtos-servicos-container');
+  document.getElementById('add-produto-btn').addEventListener('click', () => {
+    const newItem = document.createElement('div');
+    newItem.className = 'produto-servico-item';
+    newItem.innerHTML = `
+      <input type="text" name="PRODUTO_OU_SERVICO[]" class="input-modern"
+      placeholder="Ex: Consultoria Financeira" required>
+      <button type="button" class="btn-remove">&times;</button>`;
+    const prevItem = container.lastElementChild;
+    if (prevItem) {
+      const prevRemoveBtn = prevItem.querySelector('.btn-remove');
+      if (prevRemoveBtn) prevRemoveBtn.style.display = 'block';
     }
+    container.appendChild(newItem);
+  });
 
-    // --- [NOVO] Listener para Lista Dinâmica de Produtos ---
-    const container = document.getElementById('produtos-servicos-container');
-    
-    // Botão de Adicionar
-    document.getElementById('add-produto-btn').addEventListener('click', () => {
-      const newItem = document.createElement('div');
-      newItem.className = 'produto-servico-item';
-      newItem.innerHTML = `
-        <input type="text" name="PRODUTO_OU_SERVICO[]" class="input-modern" placeholder="Ex: Consultoria Financeira" required>
-        <button type="button" class="btn-remove">&times;</button>
-      `;
-      // Mostra o botão de remover no item anterior (se houver)
-      const prevItem = container.lastElementChild;
-      if (prevItem) {
-        const prevRemoveBtn = prevItem.querySelector('.btn-remove');
-        if(prevRemoveBtn) prevRemoveBtn.style.display = 'block';
-      }
-      
-      container.appendChild(newItem);
-    });
-
-    // Botão de Remover (com delegação de evento)
-    container.addEventListener('click', (e) => {
-      if (e.target && e.target.classList.contains('btn-remove')) {
-        // Não remove se for o primeiro item
-        if (e.target.closest('.produto-servico-item') !== container.firstElementChild) {
-            e.target.closest('.produto-servico-item').remove();
-        }
-      }
-    });
+  container.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('btn-remove')) {
+      if (e.target.closest('.produto-servico-item') !== container.firstElementChild)
+        e.target.closest('.produto-servico-item').remove();
+    }
+  });
 }
 
 // ================= LÓGICA DE UPLOAD DE ARQUIVOS =================
 function initializeFileUploads() {
-    document.querySelectorAll('.file-drop-area').forEach(dropArea => {
-        const inputName = dropArea.dataset.inputName;
-        const fileInput = dropArea.querySelector('.file-input-hidden');
-        const fileListContainer = dropArea.querySelector('.file-list-container');
-        const isMultiple = fileInput.multiple;
-        
-        uploadedFiles[inputName] = []; 
-        
-        dropArea.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files, inputName, isMultiple));
-        
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-        });
-        dropArea.addEventListener('drop', (e) => {
-            handleFiles(e.dataTransfer.files, inputName, isMultiple);
-        }, false);
-    });
+  document.querySelectorAll('.file-drop-area').forEach(dropArea => {
+    const inputName = dropArea.dataset.inputName;
+    const fileInput = dropArea.querySelector('.file-input-hidden');
+    const fileListContainer = dropArea.querySelector('.file-list-container');
+    const isMultiple = fileInput.multiple;
+    uploadedFiles[inputName] = [];
+    dropArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files, inputName, isMultiple));
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName =>
+      dropArea.addEventListener(eventName, preventDefaults, false)
+    );
+    dropArea.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files, inputName, isMultiple), false);
+  });
 }
 
-function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+function preventDefaults(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
 
 function handleFiles(files, inputName, isMultiple) {
-    const fileArray = [...files];
-    if (isMultiple) {
-        uploadedFiles[inputName].push(...fileArray);
-    } else {
-        uploadedFiles[inputName] = [fileArray[0]]; 
-    }
-    renderFileList(inputName);
+  const fileArray = [...files];
+  if (isMultiple) uploadedFiles[inputName].push(...fileArray);
+  else uploadedFiles[inputName] = [fileArray[0]];
+  renderFileList(inputName);
 }
 
 function renderFileList(inputName) {
-    const dropArea = document.querySelector(`.file-drop-area[data-input-name="${inputName}"]`);
-    const fileListContainer = dropArea.querySelector('.file-list-container');
-    fileListContainer.innerHTML = ''; 
-    uploadedFiles[inputName].forEach((file, index) => {
-        fileListContainer.innerHTML += `
-            <div class="file-item">
-                📄 ${file.name} 
-                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: auto;">(${(file.size / 1024).toFixed(1)} KB)</span>
-                <span style="cursor:pointer; margin-left: 10px; color:var(--error);" onclick="removeFile('${inputName}', ${index})">✖</span>
-            </div>`;
-    });
+  const dropArea = document.querySelector(`.file-drop-area[data-input-name="${inputName}"]`);
+  const fileListContainer = dropArea.querySelector('.file-list-container');
+  fileListContainer.innerHTML = '';
+  uploadedFiles[inputName].forEach((file, index) => {
+    fileListContainer.innerHTML += `
+      <div class="file-item">
+        📄 ${file.name}
+        <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: auto;">
+          (${(file.size / 1024).toFixed(1)} KB)
+        </span>
+        <span style="cursor:pointer; margin-left: 10px; color:var(--error);"
+        onclick="removeFile('${inputName}', ${index})">✖</span>
+      </div>`;
+  });
 }
 
-window.removeFile = function(inputName, index) {
-    uploadedFiles[inputName].splice(index, 1);
-    renderFileList(inputName);
+window.removeFile = function (inputName, index) {
+  uploadedFiles[inputName].splice(index, 1);
+  renderFileList(inputName);
 }
-
-// [REMOVIDO] A função createPayloadForWebhook2 foi removida
 
 function createFormData() {
-        const formData = new FormData(formElement);
-        Object.keys(uploadedFiles).forEach(inputName => {
-            const files = uploadedFiles[inputName];
-            files.forEach((file, i) => {
-                const formKey = (isMultipleUpload(inputName)) 
-                                ? `${inputName}_${i}` 
-                                : inputName;
-                formData.append(formKey, file);
-            });
-        });
-        return formData;
-    }
-
-// ================= SUBMISSÃO FINAL (MODIFICADA) =================
-async function finalSubmit() {
-    if (!validateCurrentStep()) {
-         alert("Ops! Parece que você esqueceu de preencher um campo obrigatório. Verifique os campos em vermelho.");
-         return;
-    }
-    
-    // [MUDANÇA] Mostra o loading real e dinâmico
-    showLoading("Iniciando envio...");
-    
-    const form = formElement; 
-    
-    function isMultipleUpload(inputName) {
-        const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
-        return el && el.multiple;
-    }
-
-    if (DEBUG_MODE) {
-        console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        const debugData = createFormData(); 
-        for (let [key, value] of debugData.entries()) {
-            console.log(key, value);
-        }
-        await new Promise(resolve => setTimeout(resolve, 1500)); 
-        
-        hideLoading(); // [MUDANÇA] Esconde o loading
-        showSuccessScreen(form);
-        return; 
-    }
-
-    try {
-        const formData = createFormData()
-        
-        // --- Envio para Webhook 1 (n8n - FormData) ---
-        console.log('Enviando para Webhook 1 (n8n)...');
-        const response1 = await fetch(WEBHOOK_URL, {
-            method: 'POST',
-            body: formData 
-        });
-        if (!response1.ok) {
-            throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
-        }
-        console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
-
-        // --- Envio para Webhook 2 (Secundário - FormData) ---
-        console.log('Enviando para Webhook 2 (Secundário)...');
-        const response2 = await fetch(WEBHOOK_URL_2, { // <-- AWAIT ADICIONADO
-            method: 'POST',
-            body: formData // RECRIA o FormData para a segunda chamada
-        });
-        
-        if (!response2.ok) {
-            throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
-        }
-        console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
-
-      const pdfBlob = await response2.blob();
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-
-      // Gera o nome do arquivo dinamicamente
-      const nomeEmpresa = formData.get("EMPRESA_NOME") || "Playbook";
-      const safeName = nomeEmpresa.replace(/\s+/g, "_");
-      const fileName = `${safeName} - Playbook.pdf`;
-
-      // Atualiza o mock do PDF na tela de sucesso
-      const pdfMockup = document.querySelector('.pdf-mockup-box .file-msg');
-      const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
-
-      if (pdfMockup && pdfSubMsg) {
-          pdfMockup.innerHTML = `<a href="${pdfUrl}" download="${fileName}" target="_blank" style="color: var(--primary); text-decoration: none;">${fileName}</a>`;
-          pdfSubMsg.textContent = "Clique para baixar o PDF";
-      }
-
-      // Mostra a tela de sucesso
-      hideLoading();
-      showSuccessScreen(form);
-
-
-    } catch (error) {
-        // Este CATCH é ativado se QUALQUER UM dos webhooks falhar.
-        console.error('Erro na submissão (fetch):', error);
-        alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
-        hideLoading(); // [MUDANÇA] Esconde o loading no erro
-    }
+  const formData = new FormData(formElement);
+  Object.keys(uploadedFiles).forEach(inputName => {
+    const files = uploadedFiles[inputName];
+    files.forEach((file, i) => {
+      const formKey = (isMultipleUpload(inputName)) ? `${inputName}_${i}` : inputName;
+      formData.append(formKey, file);
+    });
+  });
+  return formData;
 }
 
-function showSuccessScreen(form) {
-    document.querySelector('.nav-buttons').style.display = 'none';
-    document.querySelector('.progress-container').style.display = 'none';
-    document.querySelector('.block-nav-container').style.display = 'none';
+// ================= SUBMISSÃO FINAL =================
+async function finalSubmit() {
+  if (!validateCurrentStep()) {
+    alert("Ops! Parece que você esqueceu de preencher um campo obrigatório.");
+    return;
+  }
+  showLoading("Iniciando envio...");
+  const form = formElement;
 
-    // Pega o primeiro produto/serviço para o mock
-    const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
-    let primeiroProduto = "seu produto";
-    if (produtoInputs) {
-      // Se for um único campo, é um elemento. Se forem múltiplos, é uma NodeList.
-      primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
+  function isMultipleUpload(inputName) {
+    const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
+    return el && el.multiple;
+  }
+
+  if (DEBUG_MODE) {
+    console.log("MODO DEBUG ATIVADO. Pulando fetch.");
+    const debugData = createFormData();
+    for (let [key, value] of debugData.entries()) console.log(key, value);
+    await new Promise(r => setTimeout(r, 1500));
+    hideLoading();
+    showSuccessScreen(form);
+    return;
+  }
+
+  try {
+    const formData = createFormData();
+    console.log('Enviando para Webhook 1 (n8n)...');
+    const response1 = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+    if (!response1.ok) throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
+    console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
+
+    console.log('Enviando para Webhook 2 (Secundário)...');
+    const response2 = await fetch(WEBHOOK_URL_2, { method: 'POST', body: formData });
+    if (!response2.ok) throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
+    console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
+
+    const responseJson = await response2.json();
+    console.log("Resposta do Webhook 2:", responseJson);
+    const data = responseJson[0];
+    const outputHtml = data?.resumo || "Não foi possível gerar o resumo do playbook.";
+    const base64File = data?.arquivo || null;
+    let pdfUrl = null;
+
+    if (base64File) {
+      try {
+        const cleanBase64 = base64File.replace(/\s/g, '');
+        const byteCharacters = atob(cleanBase64);
+        const byteNumbers = Array.from(byteCharacters, c => c.charCodeAt(0));
+        const byteArray = new Uint8Array(byteNumbers);
+        const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+        pdfUrl = URL.createObjectURL(pdfBlob);
+        const nomeEmpresaInput = formData.get("EMPRESA_NOME");
+        const nomeEmpresa = nomeEmpresaInput && String(nomeEmpresaInput).trim() !== "" ? nomeEmpresaInput : "Playbook";
+        const safeName = nomeEmpresa.replace(/\s+/g, "_");
+        const fileName = `${safeName} - Playbook.pdf`;
+        const pdfMockup = document.querySelector('.pdf-mockup-box .file-msg');
+        const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
+        if (pdfMockup && pdfSubMsg) {
+          pdfMockup.innerHTML =
+            `<a href="${pdfUrl}" download="${fileName}" target="_blank"
+            style="color: var(--primary); text-decoration: none;">${fileName}</a>`;
+          pdfSubMsg.textContent = "Clique para baixar o PDF";
+        }
+      } catch (err) {
+        console.error("Erro ao converter Base64 do PDF:", err);
+        const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
+        if (pdfSubMsg) pdfSubMsg.textContent = "Erro ao processar o arquivo PDF.";
+      }
+    } else {
+      console.warn("Nenhum arquivo PDF Base64 encontrado no retorno do webhook.");
+      const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
+      if (pdfSubMsg) pdfSubMsg.textContent = "PDF não gerado ou não retornado pelo servidor.";
     }
 
-    const playbookContent = `
-        <h4>1. Saudação & Rapport</h4>
-        <ul>
-            <li><strong>Saudação:</strong> "${form.MENSAGEM_SAUDACAO.value}"</li>
-            ${form.PERGUNTAS_RAPPORT.value ? `<li><strong>Rapport:</strong> ${form.PERGUNTAS_RAPPORT.value.replace(/\n/g, ', ')}</li>` : ''}
-        </ul>
-        <h4>2. Qualificação</h4>
-        <ul>
-            <li><strong>Objetivo:</strong> Identificar se o lead tem o perfil: <strong>${form.CRITERIOS_LEAD_QUALIFICADO.value || "Não definido"}</strong>.</li>
-            <li><strong>Perguntas-Chave:</strong></li>
-            <ul>
-                ${form.QUALIFICACAO_PERGUNTAS.value.split('\n').map(q => `<li>${q}</li>`).join('')}
-            </ul>
-        </ul>
-        <h4>3. Contexto do Produto</h4>
-        <ul>
-            <li><strong>Produto Principal:</strong> ${primeiroProduto}</li>
-            <li><strong>Cliente Ideal:</strong> ${form.ICP_DESCRICAO.value}</li>
-        </ul>
-    `;
-    document.getElementById('ai_feedback_playbook_content_success').innerHTML = playbookContent;
+    document.getElementById('ai_feedback_playbook_content_success').innerHTML = outputHtml;
+    hideLoading();
+    showSuccessScreen(form);
 
-    document.querySelector('.step.active').classList.remove('active');
-    document.querySelector('.step[data-step="success"]').classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    console.error('Erro na submissão (fetch):', error);
+    alert("❌ Erro! Não foi possível enviar os dados.");
+    hideLoading();
+  }
+}
+
+// ================= TELA DE SUCESSO =================
+function showSuccessScreen(form) {
+  document.querySelector('.nav-buttons').style.display = 'none';
+  document.querySelector('.progress-container').style.display = 'none';
+  document.querySelector('.block-nav-container').style.display = 'none';
+  document.querySelector('.step.active').classList.remove('active');
+  document.querySelector('.step[data-step="success"]').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
