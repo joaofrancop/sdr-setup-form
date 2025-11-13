@@ -282,8 +282,7 @@ window.removeFile = function(inputName, index) {
     renderFileList(inputName);
 }
 
-// --- [NOVO] HELPER PARA MONTAR O JSON PARA O WEBHOOK 2 ---
-// (Este código não é mais usado na lógica atual, mas mantido caso você mude de ideia)
+// --- HELPER PARA MONTAR O JSON PARA O WEBHOOK 2 ---
 function createPayloadForWebhook2(form) {
     const produtosNodeList = form['PRODUTO_OU_SERVICO[]'];
     let produtos = [];
@@ -347,10 +346,13 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        const debugData = createFormData(); 
-        for (let [key, value] of debugData.entries()) {
+        console.log("--- DEBUG: Dados para Webhook 1 (n8n) ---");
+        for (let [key, value] of createFormData().entries()) {
             console.log(key, value);
         }
+        console.log("--- DEBUG: Dados para Webhook 2 (JSON) ---");
+        console.log(JSON.stringify(createPayloadForWebhook2(form), null, 2));
+        
         await new Promise(resolve => setTimeout(resolve, 1500)); 
         
         hideLoading(); // [MUDANÇA] Esconde o loading
@@ -359,8 +361,9 @@ async function finalSubmit() {
     }
 
     try {
-        // --- [LÓGICA DE ENVIO MODIFICADA] ---
-        // --- Envio para Webhook 1 (n8n - CRÍTICO) ---
+        // --- [LÓGICA DE ENVIO CORRIGIDA] ---
+        
+        // --- Envio para Webhook 1 (n8n - FormData) ---
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
             body: createFormData() 
@@ -370,27 +373,30 @@ async function finalSubmit() {
         }
         console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
 
-        // --- Envio para Webhook 2 (Secundário) ---
-        // (Envia os mesmos FormData para o segundo webhook)
-        const response2 = await fetch(WEBHOOK_URL_2, {
+        // --- Envio para Webhook 2 (JSON Estruturado) ---
+        const payloadJson2 = createPayloadForWebhook2(form);
+        const response2 = await fetch(WEBHOOK_URL_2, { // <-- AWAIT ADICIONADO
             method: 'POST',
-            body: createFormData() // RECRIA o FormData para a segunda chamada
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payloadJson2) // Envia JSON
         });
         if (!response2.ok) {
-            throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
+            throw new Error(`Erro no Webhook 2 (JSON): ${response2.statusText}`);
         }
-        console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
+        console.log('Envio para Webhook 2 (JSON) bem-sucedido.');
 
 
         // Se AMBOS funcionarem, mostra o sucesso
-        hideLoading(); // [MUDANÇA] Esconde o loading
-        showSuccessScreen(form);
+        hideLoading(); // <-- MOVIDO PARA O FIM
+        showSuccessScreen(form); // <-- MOVIDO PARA O FIM
 
     } catch (error) {
         // Este CATCH é ativado se QUALQUER UM dos webhooks falhar.
         console.error('Erro na submissão (fetch):', error);
         alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
-        hideLoading(); // [MUDANÇA] Esconde o loading no erro
+        hideLoading(); // Esconde o loading no erro
     }
 }
 
@@ -403,7 +409,6 @@ function showSuccessScreen(form) {
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
-      // Se for um único campo, é um elemento. Se forem múltiplos, é uma NodeList.
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
 
@@ -416,7 +421,10 @@ function showSuccessScreen(form) {
         <h4>2. Qualificação</h4>
         <ul>
             <li><strong>Objetivo:</strong> Identificar se o lead tem o perfil: <strong>${form.CRITERIOS_LEAD_QUALIFICADO.value || "Não definido"}</strong>.</li>
-            <li><strong>Pergunt</strong></li>
+            <li><strong>Perguntas-Chave:</strong></li>
+            <ul>
+                ${form.QUALIFICACAO_PERGUNTAS.value.split('\n').map(q => `<li>${q}</li>`).join('')}
+            </ul>
         </ul>
         <h4>3. Contexto do Produto</h4>
         <ul>
