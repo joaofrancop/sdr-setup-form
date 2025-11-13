@@ -1,8 +1,8 @@
 // ================= CONFIGURAÇÕES =================
 const TOTAL_STEPS = 14; 
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
-const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26"; // <-- ADICIONADO
-const DEBUG_MODE = true; 
+const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26";
+const DEBUG_MODE = false; 
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
 
