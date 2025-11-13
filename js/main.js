@@ -255,6 +255,11 @@ window.removeFile = function (inputName, index) {
   renderFileList(inputName);
 }
 
+function isMultipleUpload(inputName) {
+    const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
+    return el && el.multiple;
+}
+
 function createFormData() {
   const formData = new FormData(formElement);
   Object.keys(uploadedFiles).forEach(inputName => {
@@ -267,10 +272,7 @@ function createFormData() {
   return formData;
 }
 
-function isMultipleUpload(inputName) {
-    const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
-    return el && el.multiple;
-  }
+
 
 // ================= SUBMISSÃO FINAL =================
 async function finalSubmit() {
