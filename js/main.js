@@ -1,6 +1,7 @@
 // ================= CONFIGURAÇÕES =================
 const TOTAL_STEPS = 14; 
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
+const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26"; // <-- ADICIONADO
 const DEBUG_MODE = true; 
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
@@ -36,7 +37,11 @@ async function changeStep(direction) {
   if (currentStep === 3 && direction === 1) {
     await showLoading("Analisando seu mercado...", 1000); 
     // [CORREÇÃO] Lê o primeiro item do array de produtos para o mock
-    const primeiroProduto = form['PRODUTO_OU_SERVICO[]'][0]?.value || "seu produto";
+    const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
+    let primeiroProduto = "seu produto";
+    if (produtoInputs) {
+      primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
+    }
     const mockFeedback = `Entendi! Para vender **${primeiroProduto}** para **${form.ICP_DESCRICAO.value}**, o maior gargalo realmente é a **${form.DORES_PRINCIPAIS.value}**. \n\nVamos definir como o agente vai filtrar isso.`;
     document.getElementById('ai_feedback_1_content').innerHTML = mockFeedback; 
     document.getElementById('ai_feedback_1').style.display = 'block';
@@ -250,18 +255,26 @@ async function finalSubmit() {
     
     await showLoading("Enviando tudo para a Neural Matrix...", 3000);
     
-    const formData = new FormData(formElement);
-    const form = formElement; 
-    
-    Object.keys(uploadedFiles).forEach(inputName => {
-        const files = uploadedFiles[inputName];
-        files.forEach((file, i) => {
-            const formKey = (isMultipleUpload(inputName)) 
-                            ? `${inputName}_${i}` 
-                            : inputName;
-            formData.append(formKey, file);
+    const form = formElement; // Pega o elemento do formulário
+
+    // --- [LÓGICA DE ENVIO MODIFICADA] ---
+
+    // Helper function para criar o FormData
+    // Isto é necessário porque um 'body' de FormData só pode ser consumido uma vez.
+    // Precisamos recriá-lo para a segunda chamada.
+    function createFormData() {
+        const formData = new FormData(formElement);
+        Object.keys(uploadedFiles).forEach(inputName => {
+            const files = uploadedFiles[inputName];
+            files.forEach((file, i) => {
+                const formKey = (isMultipleUpload(inputName)) 
+                                ? `${inputName}_${i}` 
+                                : inputName;
+                formData.append(formKey, file);
+            });
         });
-    });
+        return formData;
+    }
     
     function isMultipleUpload(inputName) {
         const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
@@ -270,8 +283,9 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        for (let [key, value] of formData.entries()) {
-            console.log(key, value); // Irá mostrar "PRODUTO_OU_SERVICO[]" "Produto 1", "PRODUTO_OU_SERVICO[]" "Produto 2"
+        const debugData = createFormData(); // Cria os dados para o log
+        for (let [key, value] of debugData.entries()) {
+            console.log(key, value);
         }
         await new Promise(resolve => setTimeout(resolve, 1500)); 
         loadingOverlay.style.display = 'none';
@@ -280,18 +294,31 @@ async function finalSubmit() {
     }
 
     try {
-        const response = await fetch(WEBHOOK_URL, {
+        // Envia para o Webhook 1
+        const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
-            body: formData 
+            body: createFormData() // Cria o FormData para a primeira chamada
         });
-        if (!response.ok) {
-            throw new Error(`Erro na rede: ${response.statusText}`);
+        if (!response1.ok) {
+            throw new Error(`Erro no Webhook 1: ${response1.statusText}`);
         }
+
+        // Envia para o Webhook 2
+        const response2 = await fetch(WEBHOOK_URL_2, {
+            method: 'POST',
+            body: createFormData() // RECRIA o FormData para a segunda chamada
+        });
+        if (!response2.ok) {
+            throw new Error(`Erro no Webhook 2: ${response2.statusText}`);
+        }
+
+        // Se ambos funcionarem, mostra o sucesso
         loadingOverlay.style.display = 'none';
         showSuccessScreen(form);
+
     } catch (error) {
         console.error('Erro na submissão (fetch):', error);
-        alert("❌ Erro! Não foi possível enviar os dados. Verifique o console (F12) ou contate o suporte.");
+        alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
         loadingOverlay.style.display = 'none'; 
     }
 }
