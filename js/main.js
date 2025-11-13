@@ -1,8 +1,8 @@
 // ================= CONFIGURAÇÕES =================
 const TOTAL_STEPS = 14; 
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
-const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26"; // <-- ADICIONADO
-const DEBUG_MODE = true; 
+const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26";
+const DEBUG_MODE = false; 
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
 
@@ -34,8 +34,18 @@ async function changeStep(direction) {
   if (direction === 1 && !validateCurrentStep()) return;
   const form = formElement; 
 
+  // [CORREÇÃO DO BUG DO LOADING INFINITO]
   if (currentStep === 3 && direction === 1) {
-    await showLoading("Analisando seu mercado...", 1000); 
+    
+    // 1. Mostra o loading
+    showLoading("Analisando seu mercado..."); 
+    
+    // 2. Simula o tempo de análise
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
+    
+    // 3. Esconde o loading
+    hideLoading(); 
+    
     // [CORREÇÃO] Lê o primeiro item do array de produtos para o mock
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
@@ -252,7 +262,37 @@ window.removeFile = function(inputName, index) {
     renderFileList(inputName);
 }
 
-// ================= SUBMISSÃO FINAL =================
+// --- [NOVO] HELPER PARA MONTAR O JSON PARA O WEBHOOK 2 ---
+function createPayloadForWebhook2(form) {
+    const produtosNodeList = form['PRODUTO_OU_SERVICO[]'];
+    let produtos = [];
+    if (produtosNodeList) {
+        if (produtosNodeList.length > 1) { 
+            produtos = Array.from(produtosNodeList).map(input => input.value);
+        } else { 
+            produtos = [produtosNodeList.value];
+        }
+    }
+
+    const payload = {
+        "empresa": form.EMPRESA_NOME.value,
+        "produtos_ou_servicos": produtos,
+        "icp": form.ICP_DESCRICAO.value,
+        "maior_dificuldade": form.DORES_PRINCIPAIS.value,
+        "localizacao": form.LOCALIZACAO_EMPRESA.value,
+        "contato_com_cliente": {
+            "saudacao": form.MENSAGEM_SAUDACAO.value,
+            "rapport": form.PERGUNTAS_RAPPORT.value,
+            "qualificacao": form.QUALIFICACAO_PERGUNTAS.value,
+            "criterio_lead_qualificado": form.CRITERIOS_LEAD_QUALIFICADO.value,
+            "mensagem_lead_nao_qualificado": form.MENSAGEM_NAO_QUALIFICACAO.value,
+            "objetivos_adicionais": form.OBJETIVOS_ADICIONAIS.value
+        }
+    };
+    return [payload]; 
+}
+
+// ================= SUBMISSÃO FINAL (MODIFICADA) =================
 async function finalSubmit() {
     if (!validateCurrentStep()) {
          alert("Ops! Parece que você esqueceu de preencher um campo obrigatório. Verifique os campos em vermelho.");
@@ -262,10 +302,9 @@ async function finalSubmit() {
     // [MUDANÇA] Mostra o loading real
     showLoading("Enviando tudo para a Neural Matrix...");
     
-    const form = formElement; // Pega o elemento do formulário
+    const form = formElement; 
 
     // Helper function para criar o FormData
-    // Isto é necessário porque um 'body' de FormData só pode ser consumido uma vez.
     function createFormData() {
         const formData = new FormData(formElement);
         Object.keys(uploadedFiles).forEach(inputName => {
@@ -287,10 +326,13 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        const debugData = createFormData(); 
-        for (let [key, value] of debugData.entries()) {
+        console.log("--- DEBUG: Dados para Webhook 1 (n8n) ---");
+        for (let [key, value] of createFormData().entries()) {
             console.log(key, value);
         }
+        console.log("--- DEBUG: Dados para Webhook 2 (JSON) ---");
+        console.log(JSON.stringify(createPayloadForWebhook2(form), null, 2));
+        
         await new Promise(resolve => setTimeout(resolve, 1500)); 
         
         hideLoading(); // [MUDANÇA] Esconde o loading
@@ -299,30 +341,42 @@ async function finalSubmit() {
     }
 
     try {
-        // [MUDANÇA] Envia para o Webhook 1
+        // --- Envio para Webhook 1 (n8n - CRÍTICO) ---
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
-            body: createFormData() // Cria o FormData para a primeira chamada
+            body: createFormData() 
         });
         if (!response1.ok) {
-            throw new Error(`Erro no Webhook 1: ${response1.statusText}`);
+            throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
         }
 
-        // [MUDANÇA] Envia para o Webhook 2
-        const response2 = await fetch(WEBHOOK_URL_2, {
+        // --- Envio para Webhook 2 (Secundário, em "segundo plano") ---
+        const payloadJson2 = createPayloadForWebhook2(form);
+        fetch(WEBHOOK_URL_2, { // Note: sem 'await'
             method: 'POST',
-            body: createFormData() // RECRIA o FormData para a segunda chamada
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payloadJson2)
+        })
+        .then(response2 => {
+            if (!response2.ok) {
+                console.warn('Envio para Webhook 2 (JSON) falhou em segundo plano:', response2.statusText);
+            } else {
+                console.log('Envio para Webhook 2 (JSON) bem-sucedido em segundo plano.');
+            }
+        })
+        .catch(error2 => {
+            console.error('Falha de rede no Webhook 2:', error2);
         });
-        if (!response2.ok) {
-            throw new Error(`Erro no Webhook 2: ${response2.statusText}`);
-        }
-
-        // Se ambos funcionarem, mostra o sucesso
+        
+        // --- SUCESSO PARA O UTILIZADOR (NÃO ESPERA PELO WH 2) ---
         hideLoading(); // [MUDANÇA] Esconde o loading
         showSuccessScreen(form);
 
     } catch (error) {
-        console.error('Erro na submissão (fetch):', error);
+        // Este CATCH só é ativado se o Webhook 1 (CRÍTICO) falhar.
+        console.error('Erro na submissão (fetch principal):', error);
         alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
         hideLoading(); // [MUDANÇA] Esconde o loading no erro
     }
@@ -337,7 +391,6 @@ function showSuccessScreen(form) {
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
-      // Se for um único campo, é um elemento. Se forem múltiplos, é uma NodeList.
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
 
