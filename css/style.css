@@ -225,7 +225,11 @@ label.option-card.checkbox-card-visual {
   display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
   color: var(--primary); font-weight: 700; font-size: 1.1rem;
 }
-.ai-feedback-content { line-height: 1.6; color: #e2e8f0; white-space: pre-wrap; }
+.ai-feedback-content { 
+    line-height: 1.6; 
+    color: #e2e8f0; 
+    white-space: normal;
+}
 .ai-feedback-content strong { color: var(--primary); }
 .ai-feedback-content h4 { margin-top: 20px; margin-bottom: 8px; color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;}
 .ai-feedback-content ul { margin: 0; padding-left: 20px; }
@@ -240,15 +244,24 @@ label.option-card.checkbox-card-visual {
 .warning-box p { margin: 0; line-height: 1.5; color: #fde8c0; font-size: 0.9rem; }
 .warning-box strong { color: var(--warning-border); }
 
-/* --- LAYOUT TELA SUCESSO --- */
-.two-column-layout {
+/* --- LAYOUT TELA SUCESSO (Alterado para Linhas) --- */
+.two-rows-layout {
     display: flex;
+    flex-direction: column; /* Força o empilhamento (linhas) */
     gap: 24px;
-    align-items: flex-start;
+    align-items: center;
 }
-.two-column-layout .column {
-    flex: 1;
+.two-rows-layout .row {
+    width: 100%;
 }
+/* INVERSÃO DA ORDEM: PDF fica em cima, Resumo fica embaixo */
+.two-rows-layout .row:first-child { /* Resumo */
+    order: 2; 
+}
+.two-rows-layout .row:last-child { /* PDF */
+    order: 1; 
+}
+
 /* Mockup da caixa do PDF */
 .pdf-mockup-box {
     padding: 20px;
@@ -260,10 +273,6 @@ label.option-card.checkbox-card-visual {
 .pdf-mockup-box .file-icon { font-size: 2.5rem; margin-bottom: 0; color: var(--text-muted); }
 .pdf-mockup-box .file-msg { font-size: 1.1rem; margin-bottom: 4px; color: var(--text-main); }
 .pdf-mockup-box .file-sub-msg { font-size: 0.9rem; color: var(--primary); }
-
-@media (max-width: 600px) {
-    .two-column-layout { flex-direction: column; }
-}
 
 /* --- Lista Dinâmica de Produtos --- */
 #produtos-servicos-container .produto-servico-item {

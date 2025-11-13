@@ -294,8 +294,8 @@ async function finalSubmit() {
   try {
     const formData = createFormData();
     console.log('Enviando para Webhook 1 (n8n)...');
-    const response1 = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
-    if (!response1.ok) throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
+    // const response1 = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+    // if (!response1.ok) throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
     console.log('Envio para Webhook 1 (n8n) bem-sucedido.');
 
     console.log('Enviando para Webhook 2 (Secundário)...');
@@ -304,7 +304,6 @@ async function finalSubmit() {
     console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
 
     const responseJson = await response2.json();
-    console.log("Resposta do Webhook 2:", responseJson);
     const data = responseJson[0];
     const outputHtml = data?.resumo || "Não foi possível gerar o resumo do playbook.";
     const base64File = data?.arquivo || null;
@@ -341,6 +340,7 @@ async function finalSubmit() {
       if (pdfSubMsg) pdfSubMsg.textContent = "PDF não gerado ou não retornado pelo servidor.";
     }
 
+    console.log(outputHtml)
     document.getElementById('ai_feedback_playbook_content_success').innerHTML = outputHtml;
     hideLoading();
     showSuccessScreen(form);
