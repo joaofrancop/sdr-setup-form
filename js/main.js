@@ -2,6 +2,7 @@
 const TOTAL_STEPS = 14; 
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
 const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26";
+const WEBHOOK_URL_3 = "https://n8nbluelephant.up.railway.app/webhook/d88a0a70-738a-448d-8bf9-d31a54cfa83a"
 const DEBUG_MODE = false; 
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
@@ -50,20 +51,40 @@ async function changeStep(direction) {
     // 1. Mostra o loading (sem carrossel, é rápido)
     showLoading("Analisando seu mercado..."); 
     
-    // 2. Simula o tempo de análise
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
-    
-    // 3. Esconde o loading
-    hideLoading(); // <-- Esconde o loading
-    
     const produtoInputs = form['PRODUTO_OU_SERVICO[]'];
     let primeiroProduto = "seu produto";
     if (produtoInputs) {
       primeiroProduto = produtoInputs.length ? produtoInputs[0].value : produtoInputs.value;
     }
-    const mockFeedback = `Entendi! Para vender **${primeiroProduto}** para **${form.ICP_DESCRICAO.value}**, o maior gargalo realmente é a **${form.DORES_PRINCIPAIS.value}**. \n\nVamos definir como o agente vai filtrar isso.`;
-    document.getElementById('ai_feedback_1_content').innerHTML = mockFeedback; 
+    const feedback = '';
+    document.getElementById('ai_feedback_1_content').innerHTML = feedback; 
     document.getElementById('ai_feedback_1').style.display = 'block';
+
+
+
+  try {
+    // Faz a requisição para o webhook do n8n
+    const response = await fetch(WEBHOOK_URL_3, {
+      method: "POST",
+      body: createFormData(), // ou outro corpo se quiser
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao chamar o webhook 3: ${response.statusText}`);
+    }
+
+    let feedback = await response.text();
+    
+    hideLoading();
+    document.getElementById("ai_feedback_1_content").textContent = feedback;
+    document.getElementById("ai_feedback_1").style.display = "block";
+} catch (error) {
+  hideLoading();
+  console.error("Erro ao buscar feedback:", error);
+  document.getElementById("ai_feedback_1_content").textContent = "Ótimo segmento de mercado! Com certeza conseguimos automatizar suas dores 😄";
+  document.getElementById("ai_feedback_1").style.display = "block";
+}
+
   }
 
   currentStep += direction;
@@ -146,7 +167,7 @@ function showLoading(initialMsg) {
   loadingInterval = setInterval(() => {
     messageIndex = (messageIndex + 1) % loadingMessages.length;
     loadingMessage.innerText = loadingMessages[messageIndex];
-  }, 2500); // Muda a cada 2.5 segundos
+  }, 5000); // Muda a cada 5 segundos
 }
 
 // [NOVO] Para o carrossel e esconde o loading
@@ -284,20 +305,7 @@ window.removeFile = function(inputName, index) {
 
 // [REMOVIDO] A função createPayloadForWebhook2 foi removida
 
-// ================= SUBMISSÃO FINAL (MODIFICADA) =================
-async function finalSubmit() {
-    if (!validateCurrentStep()) {
-         alert("Ops! Parece que você esqueceu de preencher um campo obrigatório. Verifique os campos em vermelho.");
-         return;
-    }
-    
-    // [MUDANÇA] Mostra o loading real e dinâmico
-    showLoading("Iniciando envio...");
-    
-    const form = formElement; 
-
-    // Helper function para criar o FormData
-    function createFormData() {
+function createFormData() {
         const formData = new FormData(formElement);
         Object.keys(uploadedFiles).forEach(inputName => {
             const files = uploadedFiles[inputName];
@@ -310,6 +318,18 @@ async function finalSubmit() {
         });
         return formData;
     }
+
+// ================= SUBMISSÃO FINAL (MODIFICADA) =================
+async function finalSubmit() {
+    if (!validateCurrentStep()) {
+         alert("Ops! Parece que você esqueceu de preencher um campo obrigatório. Verifique os campos em vermelho.");
+         return;
+    }
+    
+    // [MUDANÇA] Mostra o loading real e dinâmico
+    showLoading("Iniciando envio...");
+    
+    const form = formElement; 
     
     function isMultipleUpload(inputName) {
         const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
@@ -330,13 +350,13 @@ async function finalSubmit() {
     }
 
     try {
-        // --- [LÓGICA DE ENVIO CORRIGIDA] ---
+        const formData = createFormData()
         
         // --- Envio para Webhook 1 (n8n - FormData) ---
         console.log('Enviando para Webhook 1 (n8n)...');
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
-            body: createFormData() 
+            body: formData 
         });
         if (!response1.ok) {
             throw new Error(`Erro no Webhook 1 (n8n): ${response1.statusText}`);
@@ -347,17 +367,35 @@ async function finalSubmit() {
         console.log('Enviando para Webhook 2 (Secundário)...');
         const response2 = await fetch(WEBHOOK_URL_2, { // <-- AWAIT ADICIONADO
             method: 'POST',
-            body: createFormData() // RECRIA o FormData para a segunda chamada
+            body: formData // RECRIA o FormData para a segunda chamada
         });
+        
         if (!response2.ok) {
             throw new Error(`Erro no Webhook 2 (Secundário): ${response2.statusText}`);
         }
         console.log('Envio para Webhook 2 (Secundário) bem-sucedido.');
 
+      const pdfBlob = await response2.blob();
+      const pdfUrl = URL.createObjectURL(pdfBlob);
 
-        // Se AMBOS funcionarem, mostra o sucesso
-        hideLoading(); // [MUDANÇA] Esconde o loading
-        showSuccessScreen(form); // [MUDANÇA] Mostra o sucesso
+      // Gera o nome do arquivo dinamicamente
+      const nomeEmpresa = formData.get("EMPRESA_NOME") || "Playbook";
+      const safeName = nomeEmpresa.replace(/\s+/g, "_");
+      const fileName = `${safeName} - Playbook.pdf`;
+
+      // Atualiza o mock do PDF na tela de sucesso
+      const pdfMockup = document.querySelector('.pdf-mockup-box .file-msg');
+      const pdfSubMsg = document.querySelector('.pdf-mockup-box .file-sub-msg');
+
+      if (pdfMockup && pdfSubMsg) {
+          pdfMockup.innerHTML = `<a href="${pdfUrl}" download="${fileName}" target="_blank" style="color: var(--primary); text-decoration: none;">${fileName}</a>`;
+          pdfSubMsg.textContent = "Clique para baixar o PDF";
+      }
+
+      // Mostra a tela de sucesso
+      hideLoading();
+      showSuccessScreen(form);
+
 
     } catch (error) {
         // Este CATCH é ativado se QUALQUER UM dos webhooks falhar.
