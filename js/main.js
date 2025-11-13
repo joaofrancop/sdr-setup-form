@@ -1,8 +1,8 @@
 // ================= CONFIGURAÇÕES =================
 const TOTAL_STEPS = 14; 
 const WEBHOOK_URL = "https://n8nbluelephant.up.railway.app/webhook/3ba80772-7612-4a54-a6c4-e4e3e5854e6d";
-const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26";
-const DEBUG_MODE = false; 
+const WEBHOOK_URL_2 = "https://n8nbluelephant.up.railway.app/webhook/0f5b3f3d-34fa-424d-9d0e-c1013066ed26"; // <-- ADICIONADO
+const DEBUG_MODE = true; 
 let currentStep = 1;
 const formElement = document.getElementById('wizardForm');
 
@@ -114,9 +114,15 @@ function validateCurrentStep() {
   return isValid;
 }
 
-function showLoading(msg, duration=1000) {
-  loadingMessage.innerText = msg; loadingOverlay.style.display = 'flex';
-  return new Promise(resolve => setTimeout(() => { loadingOverlay.style.display = 'none'; resolve(); }, duration));
+// [MODIFICADO] Apenas MOSTRA o loading
+function showLoading(msg) {
+  loadingMessage.innerText = msg; 
+  loadingOverlay.style.display = 'flex';
+}
+
+// [NOVO] Apenas ESCONDE o loading
+function hideLoading() {
+  loadingOverlay.style.display = 'none';
 }
 
 window.selectCard = function(el, inputId, val) {
@@ -253,15 +259,13 @@ async function finalSubmit() {
          return;
     }
     
-    await showLoading("Enviando tudo para a Neural Matrix...", 3000);
+    // [MUDANÇA] Mostra o loading real
+    showLoading("Enviando tudo para a Neural Matrix...");
     
     const form = formElement; // Pega o elemento do formulário
 
-    // --- [LÓGICA DE ENVIO MODIFICADA] ---
-
     // Helper function para criar o FormData
     // Isto é necessário porque um 'body' de FormData só pode ser consumido uma vez.
-    // Precisamos recriá-lo para a segunda chamada.
     function createFormData() {
         const formData = new FormData(formElement);
         Object.keys(uploadedFiles).forEach(inputName => {
@@ -283,18 +287,19 @@ async function finalSubmit() {
 
     if (DEBUG_MODE) {
         console.log("MODO DEBUG ATIVADO. Pulando fetch.");
-        const debugData = createFormData(); // Cria os dados para o log
+        const debugData = createFormData(); 
         for (let [key, value] of debugData.entries()) {
             console.log(key, value);
         }
         await new Promise(resolve => setTimeout(resolve, 1500)); 
-        loadingOverlay.style.display = 'none';
+        
+        hideLoading(); // [MUDANÇA] Esconde o loading
         showSuccessScreen(form);
         return; 
     }
 
     try {
-        // Envia para o Webhook 1
+        // [MUDANÇA] Envia para o Webhook 1
         const response1 = await fetch(WEBHOOK_URL, {
             method: 'POST',
             body: createFormData() // Cria o FormData para a primeira chamada
@@ -303,7 +308,7 @@ async function finalSubmit() {
             throw new Error(`Erro no Webhook 1: ${response1.statusText}`);
         }
 
-        // Envia para o Webhook 2
+        // [MUDANÇA] Envia para o Webhook 2
         const response2 = await fetch(WEBHOOK_URL_2, {
             method: 'POST',
             body: createFormData() // RECRIA o FormData para a segunda chamada
@@ -313,13 +318,13 @@ async function finalSubmit() {
         }
 
         // Se ambos funcionarem, mostra o sucesso
-        loadingOverlay.style.display = 'none';
+        hideLoading(); // [MUDANÇA] Esconde o loading
         showSuccessScreen(form);
 
     } catch (error) {
         console.error('Erro na submissão (fetch):', error);
         alert("❌ Erro! Não foi possível enviar os dados. Tente novamente ou contate o suporte.");
-        loadingOverlay.style.display = 'none'; 
+        hideLoading(); // [MUDANÇA] Esconde o loading no erro
     }
 }
 
