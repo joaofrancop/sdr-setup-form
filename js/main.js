@@ -267,6 +267,11 @@ function createFormData() {
   return formData;
 }
 
+function isMultipleUpload(inputName) {
+    const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
+    return el && el.multiple;
+  }
+
 // ================= SUBMISSÃO FINAL =================
 async function finalSubmit() {
   if (!validateCurrentStep()) {
@@ -275,11 +280,7 @@ async function finalSubmit() {
   }
   showLoading("Iniciando envio...");
   const form = formElement;
-
-  function isMultipleUpload(inputName) {
-    const el = document.querySelector(`.file-drop-area[data-input-name="${inputName}"] .file-input-hidden`);
-    return el && el.multiple;
-  }
+  
 
   if (DEBUG_MODE) {
     console.log("MODO DEBUG ATIVADO. Pulando fetch.");
