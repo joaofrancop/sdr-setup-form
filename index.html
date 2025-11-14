@@ -309,14 +309,14 @@
           <label class="input-label">Estilo de Comunicação <span class="required-mark">*</span></label>
            <div class="options-grid" style="grid-template-columns: repeat(2, 1fr); min-height: 0;">
              <label class="option-card checkbox-card-visual">
-                <input type="checkbox" name="FLAG_EMOJI">
-                <div class="option-icon" style="font-size: 2rem;">😀</div>
-                <div class="option-title" style="font-size:0.9rem">Permitir Emojis</div>
+               <input type="checkbox" name="FLAG_EMOJI">
+               <div class="option-icon" style="font-size: 2rem;">😀</div>
+               <div class="option-title" style="font-size:0.9rem">Permitir Emojis</div>
              </label>
              <label class="option-card checkbox-card-visual">
-                <input type="checkbox" name="FLAG_RESPOSTA_POR_AUDIO">
-                <div class="option-icon" style="font-size: 2rem;">🎙️</div>
-                <div class="option-title" style="font-size:0.9rem">Permitir Respostas por Áudio (Voz Sintética)</div>
+               <input type="checkbox" name="FLAG_RESPOSTA_POR_AUDIO">
+               <div class="option-icon" style="font-size: 2rem;">🎙️</div>
+               <div class="option-title" style="font-size:0.9rem">Permitir Respostas por Áudio (Voz Sintética)</div>
              </label>
            </div>
         </div>
@@ -438,8 +438,8 @@
               <div class="option-title" style="font-size:0.9rem">Envio de Mídia</div>
               
               <div class="nested-checkbox" id="nested_audio_flag" style="display: none;">
-                 <input type="checkbox" name="FLAG_ENVIO_ARQUIVO_AUDIO">
-                 <label>Permitir envio de *arquivos* de áudio</label>
+                <input type="checkbox" name="FLAG_ENVIO_ARQUIVO_AUDIO">
+                <label>Permitir envio de *arquivos* de áudio</label>
               </div>
             </label>
           </div>
@@ -477,7 +477,7 @@
              <div class="file-list-container"></div>
           </div>
           
-          <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_info_empresa" data-accept="application/pdf, .doc, .docx, .txt">
+          <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_info_empresa" data-accept="application/pdf, .doc, .docx, .txt" data-required="true">
              <div class="file-icon">🏢</div>
              <div class="file-msg">Informações Diversas da Empresa</div>
              <div class="file-sub-msg">Arraste ou clique (PDF, DOC, TXT)</div>
@@ -485,7 +485,7 @@
              <div class="file-list-container"></div>
           </div>
           
-           <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_faq" data-accept="application/pdf, .doc, .docx, .txt">
+            <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_faq" data-accept="application/pdf, .doc, .docx, .txt" data-required="true">
              <div class="file-icon">❓</div>
              <div class="file-msg">FAQ (Perguntas Frequentes)</div>
              <div class="file-sub-msg">Arraste ou clique (PDF, DOC, TXT)</div>
@@ -493,7 +493,7 @@
              <div class="file-list-container"></div>
           </div>
           
-           <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_produtos" data-accept="application/pdf, .doc, .docx, .txt">
+            <div style="height: 16px;"></div> <div class="file-drop-area" data-input-name="doc_produtos" data-accept="application/pdf, .doc, .docx, .txt" data-required="true">
              <div class="file-icon">📦</div>
              <div class="file-msg">Descritivo de Produtos/Serviços</div>
              <div class="file-sub-msg">Arraste ou clique (PDF, DOC, TXT)</div>
@@ -530,7 +530,7 @@
                         <span>🤖 Seu Playbook de Vendas (Resumo)</span>
                     </div>
                     <div class="ai-feedback-content" id="ai_feedback_playbook_content_success">
-                        </div>
+                    </div>
                 </div>
             </div>
             <div class="row">
