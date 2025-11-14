@@ -112,10 +112,11 @@ function validateCurrentStep() {
   const activeStep = document.querySelector('.step.active');
   if (!activeStep || activeStep.dataset.step === 'success') return true;
 
-  const requiredInputs = activeStep.querySelectorAll('input[required], textarea[required], select[required]');
   let isValid = true;
   let firstInvalidInput = null;
 
+  // 1. Validar inputs padrão (text, textarea, etc.)
+  const requiredInputs = activeStep.querySelectorAll('input[required], textarea[required], select[required]');
   requiredInputs.forEach(input => {
     input.classList.remove('error');
     if (!input.value.trim()) {
@@ -124,7 +125,29 @@ function validateCurrentStep() {
       if (!firstInvalidInput) firstInvalidInput = input;
     }
   });
-  if (firstInvalidInput) firstInvalidInput.focus();
+
+  // 2. Validar file inputs customizados (adicionado)
+  const requiredFileAreas = activeStep.querySelectorAll('.file-drop-area[data-required="true"]');
+  requiredFileAreas.forEach(area => {
+    area.classList.remove('error'); // Limpa erro anterior
+    const inputName = area.dataset.inputName;
+    if (!uploadedFiles[inputName] || uploadedFiles[inputName].length === 0) {
+      isValid = false;
+      area.classList.add('error');
+      if (!firstInvalidInput) firstInvalidInput = area; // Armazena a área
+    }
+  });
+
+  // Foca no primeiro input inválido (se for um input) ou scrolla para a área (se for file area)
+  if (firstInvalidInput) {
+    if (firstInvalidInput.focus) {
+      firstInvalidInput.focus();
+    } else {
+      // Para o file-drop-area, apenas rola para ele
+      firstInvalidInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  
   return isValid;
 }
 
